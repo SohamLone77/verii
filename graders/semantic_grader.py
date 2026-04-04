@@ -1,7 +1,6 @@
 # COST_TRACKING
 from __future__ import annotations
 
-from functools import lru_cache
 from typing import Optional
 
 import numpy as np
@@ -14,11 +13,24 @@ from reward.cost_tracker import CostTracker
 import os
 from openai import OpenAI
 
-def _get_client() -> OpenAI:
-    """Lazily instantiate the OpenAI client."""
+# Module-level cached model — loaded once per process, not per call.
+_LOCAL_MODEL = None
+
+
+def _get_local_model():
+    """Return the cached sentence-transformers model, loading it on first call."""
+    global _LOCAL_MODEL
+    if _LOCAL_MODEL is None:
+        from sentence_transformers import SentenceTransformer
+        _LOCAL_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+    return _LOCAL_MODEL
+
+
+def _get_client() -> Optional[OpenAI]:
+    """Lazily instantiate the OpenAI client. Returns None if key not set."""
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
-        return None  # Fallback gracefully if not set
+        return None
     return OpenAI(api_key=key)
 
 
@@ -38,8 +50,13 @@ class SemanticGrader:
     """
     Embedding-based grader.
 
-    Computes cosine similarity between the agent's output and a gold-standard
-    reference using sentence-transformers (all-MiniLM-L6-v2).
+    Primary path: local sentence-transformers (all-MiniLM-L6-v2) — always
+    deterministic and requires no API key. This is the default used during
+    inference and evaluation.
+
+    Optional path: OpenAI text-embedding-3-small — used only when
+    OPENAI_API_KEY is set AND a cost_tracker is supplied (i.e., live sessions
+    with explicit cost tracking). This path is skipped during baseline scoring.
 
     When no gold standard is available, scores against the original prompt
     as a loose relevance signal.
@@ -53,44 +70,40 @@ class SemanticGrader:
         reference: Optional[str] = None,
         cost_tracker: Optional[CostTracker] = None,
     ) -> GraderResult:
-        client = _get_client()
         anchor = reference if reference else prompt
+        usage_metadata: dict = {}
 
-        usage_metadata = {}
-        
-        if client:
-            # Native OpenAI Embeddings for tracking
+        client = _get_client()
+        if client and cost_tracker is not None:
+            # OpenAI Embeddings path — only when explicitly tracking costs
             resp = client.embeddings.create(
                 input=[anchor, output],
                 model="text-embedding-3-small",
             )
             anchor_emb = resp.data[0].embedding
             output_emb = resp.data[1].embedding
-            
-            # Pass usage back out to be tracked
+
             usage_metadata = {
                 "model": "text-embedding-3-small",
                 "prompt_tokens": resp.usage.prompt_tokens,
-                "completion_tokens": resp.usage.total_tokens - resp.usage.prompt_tokens,  # 0 for embeddings usually
+                "completion_tokens": resp.usage.total_tokens - resp.usage.prompt_tokens,
             }
-            if cost_tracker is not None:
-                cost_tracker.track(
-                    model=usage_metadata["model"],
-                    prompt_tokens=usage_metadata["prompt_tokens"],
-                    completion_tokens=usage_metadata["completion_tokens"],
-                )
-                usage_metadata["tracked"] = True
+            cost_tracker.track(
+                model=usage_metadata["model"],
+                prompt_tokens=usage_metadata["prompt_tokens"],
+                completion_tokens=usage_metadata["completion_tokens"],
+            )
+            usage_metadata["tracked"] = True
         else:
-            # Fallback to local if no API key is set
-            from sentence_transformers import SentenceTransformer
-            model = SentenceTransformer("all-MiniLM-L6-v2")
+            # Default: local embeddings — deterministic, no API key required
+            model = _get_local_model()
             emb = model.encode([anchor, output])
             anchor_emb = emb[0].tolist()
             output_emb = emb[1].tolist()
 
         sim = _cosine_similarity(anchor_emb, output_emb)
 
-        # Map cosine sim [-1, 1] → [0, 1] (in practice most will be [0, 1])
+        # Map cosine sim [-1, 1] -> [0, 1] (in practice most will be [0, 1])
         score = max(0.0, min(1.0, (sim + 1.0) / 2.0))
 
         return GraderResult(

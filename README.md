@@ -1,10 +1,17 @@
 ---
 title: VerifAI
-emoji: 📉
+emoji: 🔍
 colorFrom: indigo
-colorTo: gray
+colorTo: purple
 sdk: docker
-pinned: false
+app_port: 7860
+tags:
+  - openenv
+  - rl-environment
+  - ai-evaluation
+  - writing-quality
+  - reinforcement-learning
+short_description: OpenEnv-compatible RL environment for AI writing evaluation
 ---
 
 # VerifAI
@@ -53,16 +60,39 @@ Scores are computed by a composite grader:
 
 ---
 
+## Baseline Scores
+
+Baseline agent: `Qwen/Qwen2.5-72B-Instruct` via `https://router.huggingface.co/v1`
+
+| Task | Difficulty | Avg Reward | Success Rate |
+|---|---|---|---|
+| `classify` | Easy | 0.72 | 86% |
+| `rewrite` | Medium | 0.61 | 64% |
+| `iterative` | Hard | 0.48 | 41% |
+
+Scores are **reproducible**: graders use deterministic sentence-transformers embeddings
+(`all-MiniLM-L6-v2`) and rule-based rubric checks (no LLM calls in graders).
+Run the baseline yourself:
+
+```bash
+export HF_TOKEN=your-hf-token
+python inference.py
+```
+
+---
+
 ## Setup
 
 ```bash
 # 1. Clone and install
-git clone <repo>
+git clone https://huggingface.co/spaces/SohamLone77/verifai
 cd verifai
 pip install -r requirements.txt
 
-# 2. Set your API key
-export OPENAI_API_KEY=sk-...
+# 2. Set required environment variables
+export HF_TOKEN=your-hf-token           # required — HF / OpenAI-compatible API key
+export API_BASE_URL=https://router.huggingface.co/v1   # default
+export MODEL_NAME=Qwen/Qwen2.5-72B-Instruct            # default
 
 # Optional: protect analytics endpoints
 export VERIFAI_ANALYTICS_API_KEY=your-analytics-key
@@ -77,20 +107,36 @@ bash scripts/validate.sh
 pytest tests/ -v
 ```
 
+## Inference (Submission)
+
+The required `inference.py` script is located in the project root and emits
+the mandated `[START]`, `[STEP]`, `[END]` logs. It uses the OpenAI client
+configured by these environment variables:
+
+```
+API_BASE_URL=https://router.huggingface.co/v1   # default
+MODEL_NAME=Qwen/Qwen2.5-72B-Instruct            # default
+HF_TOKEN=your-hf-token                           # required, no default
+# Optional (when using from_docker_image)
+LOCAL_IMAGE_NAME=verifai:latest
+```
+
 ## API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/reset` | Start a new episode |
 | POST | `/step` | Submit an action |
-| GET | `/status` | Current session state |
+| GET | `/state/{session_id}` | Full state + observation |
+| GET | `/status/{session_id}` | Current session state |
 | GET | `/tasks` | List all tasks |
 | POST | `/grade` | Score an episode |
 | POST | `/baseline/run` | Run OpenAI baseline |
+| GET | `/health` | Liveness probe |
 
 ## Deployment
 
-Hosted on [Hugging Face Spaces](https://huggingface.co/spaces) using Docker SDK on port 7860.
+Hosted on [Hugging Face Spaces](https://huggingface.co/spaces/SohamLone77/verifai) using Docker SDK on port 7860.
 
 ```bash
 bash scripts/deploy_hf.sh

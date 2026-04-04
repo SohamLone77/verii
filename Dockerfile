@@ -1,29 +1,36 @@
 FROM python:3.11-slim
 
+# HF Spaces runs containers as uid=1000 (non-root)
+RUN useradd -m -u 1000 user
+
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
+# Copy and install Python dependencies as root first
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy project source
-COPY . .
+COPY --chown=user:user . .
 
-# Pre-download sentence-transformers model (cached in image)
+# Pre-download sentence-transformers model into the image so
+# grading is deterministic and doesn't need outbound network at runtime.
+# Run as the non-root user so the cache lands in /home/user/.cache
+USER user
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
 # Expose HF Spaces port
 EXPOSE 7860
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Health check (curl is available from the root layer)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl -f http://localhost:7860/health || exit 1
 
-# Start the server
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Start the server bound to all interfaces on port 7860
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
