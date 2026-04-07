@@ -64,11 +64,11 @@ Scores are computed by a composite grader:
 
 Baseline agent: `Qwen/Qwen2.5-72B-Instruct` via `https://router.huggingface.co/v1`
 
-| Task | Difficulty | Avg Reward | Success Rate |
+| Task | Difficulty | Final Reward | Success Rate |
 |---|---|---|---|
-| `classify` | Easy | 0.72 | 86% |
-| `rewrite` | Medium | 0.61 | 64% |
-| `iterative` | Hard | 0.48 | 41% |
+| `classify` | Easy | 0.90 | 100% |
+| `rewrite` | Medium | 0.90 | 100% |
+| `iterative` | Hard | 0.92 | 100% |
 
 Scores are **reproducible**: graders use deterministic sentence-transformers embeddings
 (`all-MiniLM-L6-v2`) and rule-based rubric checks (no LLM calls in graders).
@@ -141,3 +141,60 @@ Hosted on [Hugging Face Spaces](https://huggingface.co/spaces/SohamLone77/verifA
 ```bash
 bash scripts/deploy_hf.sh
 ```
+
+---
+
+## Problem Statement (Round 1)
+
+### Task Summary
+
+Build a complete, real-world OpenEnv environment that an AI agent can learn from
+through the standard `step()` / `reset()` / `state()` API.
+
+### Key Requirements
+
+- Real-world task simulation (not games or toys)
+- Full OpenEnv spec: typed models, `step()` / `reset()` / `state()`, `openenv.yaml`
+- Minimum 3 tasks with graders (easy -> medium -> hard), scores in 0.0 to 1.0
+- Meaningful reward function with partial progress signals
+- Baseline inference script with reproducible scores
+- Deploy to Hugging Face Spaces + working Dockerfile
+- README with environment description, action/observation spaces, setup instructions
+
+### Functional Requirements
+
+- Real-world task domain (e.g., email triage, code review, content moderation)
+- OpenEnv spec compliance and validation via `openenv validate`
+- Deterministic, well-defined graders with success/failure criteria
+- Reward shaping over the trajectory (not only terminal rewards)
+- Baseline inference uses OpenAI client and reads API creds from env vars
+
+### Non-Functional Requirements
+
+- HF Space deploys and responds (tagged with `openenv`)
+- Containerized execution with Dockerfile
+- Documentation includes environment description, task details, and baseline scores
+
+### Mandatory Inference Requirements
+
+- Inference script must be `inference.py` at repo root
+- Use OpenAI client configured with:
+  - `API_BASE_URL`
+  - `MODEL_NAME`
+  - `HF_TOKEN`
+  - `LOCAL_IMAGE_NAME` (optional if using from_docker_image)
+- Stdout logging format must be exact:
+
+```
+[START] task=<task_name> env=<benchmark> model=<model_name>
+[STEP]  step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+[END]   success=<true|false> steps=<n> rewards=<r1,r2,...,rn>
+```
+
+### Pre-Submission Checklist
+
+- HF Space deploys and responds to `reset()`
+- `openenv validate` passes
+- Dockerfile builds
+- Baseline inference script runs and reproduces scores
+- 3+ tasks with graders produce 0.0 to 1.0 rewards
