@@ -1,4 +1,4 @@
-﻿# Node
+# Node
 node_modules/
 verifai-frontend/node_modules/
 npm-debug.log*
@@ -36,3 +36,8 @@ reasoning_output.md
 # OS
 .DS_Store
 Thumbs.db
+
+# Inference run artifacts
+inference_out.txt
+inference_output.txt
+*.log
