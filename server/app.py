@@ -1,5 +1,8 @@
 import uvicorn
 from app.main import app
 
-def run():
+def main():
     uvicorn.run("app.main:app", host="0.0.0.0", port=7860)
+
+if __name__ == "__main__":
+    main()
