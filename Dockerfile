@@ -19,12 +19,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project source
 COPY --chown=user:user . .
 
-# Pre-download sentence-transformers model into the image safely with retries.
-# Disable progress bars and retry up to 5 times to prevent HF Hub read timeouts.
+# Run as non-root for HF Spaces runtime.
 USER user
-RUN for i in 1 2 3 4 5; do \
-        python -c "import os; os.environ['HF_HUB_DISABLE_PROGRESS_BARS']='1'; from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" && break || sleep 5; \
-    done
 
 # Expose HF Spaces port
 EXPOSE 7860

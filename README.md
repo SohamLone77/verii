@@ -20,9 +20,9 @@ short_description: OpenEnv-compatible RL environment for AI writing evaluation
 
 ### _An OpenEnv-compatible reinforcement-learning environment for evaluating and improving AI-generated writing quality_
 
-[![Live on HF Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20HF%20Space-Running-brightgreen)](https://huggingface.co/spaces/SohamLone77/verifAI)
+[![Live on HF Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20HF%20Space-Running-brightgreen)](https://sohamlone77-verifai.hf.space)
 [![OpenEnv](https://img.shields.io/badge/OpenEnv-Compliant-blue)](https://github.com/openenv-hub/openenv)
-[![Docker](https://img.shields.io/badge/Docker-SDK-2496ED?logo=docker&logoColor=white)](https://huggingface.co/spaces/SohamLone77/verifAI)
+[![Docker](https://img.shields.io/badge/Docker-SDK-2496ED?logo=docker&logoColor=white)](https://sohamlone77-verifai.hf.space)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
 
 </div>
