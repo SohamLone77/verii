@@ -67,8 +67,7 @@ def _build_client() -> OpenAI:
 
 def _format_action_for_log(action: Action, raw_text: str) -> str:
     if action.modality == "structured" and action.structured_data is not None:
-        payload = json.dumps(action.structured_data, separators=(",", ":"))
-        action_text = payload
+        action_text = "structured_payload"
     else:
         action_text = raw_text
     action_text = " ".join(action_text.split())
